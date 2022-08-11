@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Zip_Code</fullName>
+    <active>true</active>
+    <errorConditionFormula>NOT(
+OR(
+REGEX(Name,&quot;\\d*%&quot;),
+REGEX(Name,&quot;\\d*&quot;)
+)
+)</errorConditionFormula>
+    <errorDisplayField>Name</errorDisplayField>
+    <errorMessage>Zip must be numeric with an optional &apos;%&apos; only on the end</errorMessage>
+</ValidationRule>

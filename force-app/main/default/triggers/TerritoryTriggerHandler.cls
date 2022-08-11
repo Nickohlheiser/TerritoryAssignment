@@ -5,7 +5,7 @@ public with sharing class TerritoryTriggerHandler {
         AccountController.reassignAccountContactAndOpp(ressignedAccounts, FALSE);
     }    
     
-    public static void beforeUpdate(List<Territory__c> newTerritories, Map<Id,Territory__c> oldTerritories){
+    public static void afterUpdate(List<Territory__c> newTerritories, Map<Id,Territory__c> oldTerritories){
         // Reassign accounts in this territory if the Name (Zip Code) changed or if the number of TA's changed
         List<Territory__c> territoriesNeedingReassignment = new List<Territory__c>();
         for(Territory__c t : newTerritories){
