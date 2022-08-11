@@ -57,7 +57,17 @@ User C owns 23 (5 owned, 18 assigned)
 
 
 
+## Triggering the automation
+When accounts are triggered by the Postal Code changing only the triggered accounts are reassigned
 
+When Territories are triggered either insert or update(Name change) or TA's changing (update, insert, delete)
+
+There is also a schedulable job that will correct any mis-owned accounts nightly.  Schedule by running:
+```
+TerritoryAuditAccounts s = new TerritoryAuditAccounts();
+String sch = '0 0 0 * * ?	';
+String jobID = system.schedule('Territory Audit Accounts', sch, s);
+```
 
 ## Source project requirements: 
 https://docs.google.com/document/d/1KFjEVKu-tTer57okB8FfoqhLygaQzsmJtaKKMIgTtmQ/edit 
