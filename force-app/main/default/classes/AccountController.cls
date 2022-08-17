@@ -32,7 +32,7 @@ public with sharing class AccountController {
         
         // Find the appropriate Territory for the Account's Postal Billing Code
         // AccountId > Territory ID
-        Map<Id,Id> matchedTerritoriesByAccount = new Map<Id,Id>();
+        Map<String,Id> matchedTerritoriesByAccount = new Map<String,Id>();
         
         // Function only returns for accounts which match to a Territory
         TerritoryHelper th = new TerritoryHelper();
@@ -55,12 +55,18 @@ public with sharing class AccountController {
         // Check the Account's appropriate Territory (matchedTerritoriesByAccount) against the TA's in the Territory (territoryAndTAsMap), if there is NO match then add the territory to the list to be re-processed
         for(Account acc : triggeredAccounts){
             // Check to see if the Account matched a Territory, if no match then loop iteration ends, else check the Account Owner to the TA's in the Territory    
-            if(matchedTerritoriesByAccount.containsKey(acc.Id)){
-                Id matchedTerritoryId = matchedTerritoriesByAccount.get(acc.Id);
+            String mapKey = (acc.Id == null) ? acc.OwnerId + acc.BillingPostalCode : acc.Id;
+            if(matchedTerritoriesByAccount.containsKey(mapKey)){
+                Id matchedTerritoryId = matchedTerritoriesByAccount.get(mapKey);
+                System.debug('AccountController: Account BillingPostalCode ' + acc.BillingPostalCode + ' matched Territory Id ' + matchedTerritoryId);
                 // Check to see if the Account owner is listed in the TA's for the Account's appropriate Territory record
                 if(!territoryAndTAsMap.get(matchedTerritoryId).contains(acc.OwnerId)){
                     triggerTerritoryIds.add(matchedTerritoryId);
                     accountNeedNewOwner.add(acc);
+                    System.debug('AccountController: Account (Owner ' + acc.OwnerId + ' BillingPostalCode ' + acc.BillingPostalCode + ') does not match a TA, adding account to accountNeedNewOwner and TerritoryId to triggerTerritoryIds');
+                    System.debug('AccountController: TAs: ' + territoryAndTAsMap.get(matchedTerritoryId));
+                } else {
+                    System.debug('AccountController: Account ' + acc.Name + ' (Owner ID ' + acc.OwnerId + ' BillingPostalCode' + acc.BillingPostalCode + ') matched a TA (' + territoryAndTAsMap.get(matchedTerritoryId) + ')');
                 }
             }
         }
