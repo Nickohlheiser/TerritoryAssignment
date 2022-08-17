@@ -11,7 +11,7 @@ public without sharing class TerritoryController {
     //Territory Name > TA Assignee > 'current' > count
     public static Map<String,List<Account>> misOwnedAccounts = new Map<String,List<Account>>();
     
-
+    
     public List<Account> processTriggeredTerritories(List<Territory__c> triggeredTerritories){
         // called by functions triggered by Territory/TA changes.
         // Polymorphism allows the function to be called with or without a list of specific accounts to process, calls the same process but with a null account list
@@ -19,26 +19,32 @@ public without sharing class TerritoryController {
         List<Account> returnAccounts = processTriggeredTerritories(triggeredTerritories, nullAccountsList);
         return returnAccounts;
     }
-
+    
     public list<Account> processTriggeredTerritories(List<Territory__c> triggeredTerritories, List<Account> specificAccountOverride){
         buildTAMap(triggeredTerritories);
         // 
-        
+        System.debug('processTriggeredTerritories: triggeredTerritories: ' + triggeredTerritories);
         // requires Territories list
         // required to run for function identifyMisOwnedAccountsForZipCode
         
         // builds to accountByZipMap, required for function identifyMisOwnedAccountsForZipCode
         if(specificAccountOverride != null && specificAccountOverride.size() > 0){
+            System.debug('processTriggeredTerritories: specificAccountOverride size: ' + specificAccountOverride.size());
             buildAccountByZipMap(specificAccountOverride);
         } else {
-        buildAccountByZipMap(findAccountsInTerritory(getSoqlFilters(triggeredTerritories)));
+            buildAccountByZipMap(findAccountsInTerritory(getSoqlFilters(triggeredTerritories)));
         }
-
-
+        for(String zip : accountByZipMap.keySet()){
+            for(Account acc : accountByZipMap.get(zip)){
+                System.debug('Account ' + acc.Id + ', Owner ' + acc.OwnerId + ', BillingPostalCode ' + acc.BillingPostalCode + ' is in accountByZipMap = ' + zip);
+            }
+        }
+        
+        
         identifyMisOwnedAccountsForZipCode();
         // loops through accountByZipMap & identifies accounts with OwnerIds that are not a TA for that zip.  Accounts are added to misOwnedAccounts map
         // requires accountsByZipMap to be populated (Territory zip code (Name) > list of accounts)
-
+        
         List<Account> reassignedAccounts = new List<Account>();
         for(String Zip : TAmap.keySet()){
             Map<String,Map<String,Integer>> currentTAMap = TAmap.get(Zip);
@@ -77,6 +83,10 @@ public without sharing class TerritoryController {
             }
         }
         
+        for(String s : filters.keySet()){
+            System.debug('getSoqlFilters: filters Key: ' + s + ' contains values: ' + filters.get(s));
+        }
+        
         // Compile SOQL filter to find sub-territories of the incoming wildcard territories to populate NOT IN portion of the query
         // Only necessary if there areinbound wildcarded territories
         if(filters.containsKey('LIKE')){
@@ -85,33 +95,26 @@ public without sharing class TerritoryController {
             String includeFilter = 'Name NOT IN (';
             
             // Step 2: add the IN & LIKE values from the map to the filter
+            // add IN values
             if(filters.containsKey('IN')){
-                includeFilter += Utils.listToStringSingleQuote(filters.get('IN'));
-                System.debug('includeFilter after IN = ' + includeFilter);
+                includeFilter += Utils.listToStringSingleQuote(filters.get('IN')) + ',';
+                System.debug('includeFilter after adding INs = ' + includeFilter);
             }
-
-            // if there are no LIKE values then close the IN filter ")"
-            if(!filters.containsKey('LIKE')){
-                subTerritoryFilter += includeFilter + ')';
-                System.debug('filters doesn\'t contain LIKE, subTerritoryFilter = ' + subTerritoryFilter);
-            } else {
-                if(filters.containsKey('IN')){
-                    System.debug('filters contains IN, adding comma');
-                    includeFilter += ',';
-                    System.debug('subTerritoryFilter = ' + subTerritoryFilter);
-                }
-                subTerritoryFilter += includeFilter + Utils.listToStringSingleQuote(filters.get('LIKE')) + ') AND (';
-                System.debug('subTerritoryFilter after adding LIKEs = ' + subTerritoryFilter);
-                
-                
-                // Step 3: Add the OR portions for LIKE filter on inbound wildcarded territories
-                includeFilter = Utils.listToStringSingleQuote(filters.get('LIKE'), 'Name LIKE ', 'OR');
-                
-                
-                // Step 4: Close OR portion of SOQL filter
-                subTerritoryFilter += includeFilter + ')';
-                System.debug('subTerritoryFilter after adding OR Name Like filter' + subTerritoryFilter);
-            }
+            
+            // add LIKE values
+            
+            subTerritoryFilter += includeFilter + Utils.listToStringSingleQuote(filters.get('LIKE')) + ') AND (';
+            System.debug('subTerritoryFilter after adding LIKEs = ' + subTerritoryFilter);
+            
+            
+            // Step 3: Add the OR portions for LIKE filter on inbound wildcarded territories
+            includeFilter = Utils.listToStringSingleQuote(filters.get('LIKE'), 'Name LIKE ', 'OR');
+            
+            
+            // Step 4: Close OR portion of SOQL filter
+            subTerritoryFilter += includeFilter + ')';
+            System.debug('subTerritoryFilter after adding OR Name Like filter' + subTerritoryFilter);
+            
             
             // Add sub-territories of wildcarded incoming territories, incoming territores already filtered out
             for(Territory__c t : database.query(subTerritoryFilter)){
@@ -122,11 +125,11 @@ public without sharing class TerritoryController {
             }
             
             System.debug('subTerritoryFilter = ' + subTerritoryFilter);
-        }
-        
-        System.debug('filters values = ' + filters.keySet());
-        for(String s : filters.keySet()){
-            System.debug(s + ' size = ' + filters.get(s).size());
+            
+            System.debug('filters values = ' + filters.keySet());
+            for(String s : filters.keySet()){
+                System.debug(s + ' size = ' + filters.get(s).size());
+            }
         }
         return filters;
     }
@@ -141,7 +144,7 @@ public without sharing class TerritoryController {
         if(filterMap.containsKey('IN')){
             queryString += 'BillingPostalCode IN (' + Utils.listToStringSingleQuote(filterMap.get('IN')) + ')';
         }
-
+        
         if(!filterMap.containsKey('LIKE')){
             // No LIKE values so close the IN statement & finished
             System.debug('No LIKE values, final queryString = ' + queryString);
@@ -153,22 +156,22 @@ public without sharing class TerritoryController {
             
             // add open parenthesis which groups the second part of the query
             queryString += '(';
-
+            
             queryString += '(' + Utils.listToStringSingleQuote(filterMap.get('LIKE'), 'BillingPostalCode LIKE ', 'OR') + ')';
             System.debug('LIKE values PRESENT!!! ' + queryString);
             
             // Covers cases where IN and NOT INs are present
             if(filterMap.containsKey('IN') || filterMap.containsKey('NOT IN')){
                 queryString += ' AND BillingPostalCode NOT IN (';
-                if(filterMap.containsKey('IN)')){
-                    queryString += Utils.listToStringSingleQuote(filterMap.get('IN'));
-                } 
+                if(filterMap.containsKey('IN')){
+                    queryString +=  Utils.listToStringSingleQuote(filterMap.get('IN'));
+                }
                 if(filterMap.containsKey('NOT IN')){
                     queryString += Utils.listToStringSingleQuote(filterMap.get('NOT IN'));
                 }
-            queryString += ')';
+                queryString += ')';
             } 
-
+            
             // Covers cases where NOT LIKEs are present
             if(filterMap.containsKey('NOT LIKE')){
                 queryString += Utils.listToStringSingleQuote(filterMap.get('NOT LIKE'), 'BillingPostalCode NOT LIKE ', 'AND') + ')';
@@ -180,18 +183,19 @@ public without sharing class TerritoryController {
         List<Account> accountsInTerritory = database.query(queryString);
         return accountsInTerritory;        
     }
-
+    
     private void buildAccountByZipMap(List<Account> targetAccounts){        
         for(Account a : targetAccounts){
             String zip = expandWildCardZip(a.BillingPostalCode);
             Integer zipLength = zip.length();
             String matchingZip = zip; 
+            System.debug('buildAccountByZipMap: finding Zip for BillingPostalCode ' + a.BillingPostalCode);
             // Continuously wildcard the BillingPostalCode until a match is found in TA Map
             // Eg: check 12345, then 1234*, then 123**, 12***, 1****
             for(Integer i = 4 ; i > 0; i--){ 
                 // System.debug('checking TAmap for key ' + matchingZip);
                 if(TAmap.containsKey(matchingZip)){
-                    // System.debug('TAmap contains key for ' + matchingZip);
+                    System.debug('buildAccountByZipMap: TAmap contains key ' + matchingZip + ' for BillingPostalCode ' + a.BillingPostalCode);
                     if(!accountByZipMap.containsKey(matchingZip)){
                         accountByZipMap.put(matchingZip,new List<Account>());
                     }
@@ -321,8 +325,8 @@ public without sharing class TerritoryController {
         System.debug('assignMisOwnedAccountsForZipCode, finished building TAsByCurrent map & currentValueList');
         System.debug('currentValueList = ' + currentValueList);
         System.debug('TAsByCurrent map = ' + TAsByCurrent);
-
-
+        
+        
         // Begin looping through CurrentValueList & re-assigning accounts
         // Derive the delta between the first value (minimum) & the 2nd (next minimum) value in the list
         List<Account> misOwnedAccountsForCurrentZip = misOwnedAccounts.get(currentZipCode);

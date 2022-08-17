@@ -1,11 +1,7 @@
 public with sharing class AccountTriggerHandler {
     public static void beforeInsert(List<Account> newAccounts){
         List<Account> assignTerritory = new List<Account>();
-        
-        for(Account acc : newAccounts){
-            acc.Rating = 'Hot';
-        }
-        
+            
         for(Account acc : newAccounts){
             if(acc.BillingPostalCode != null){
                 assignTerritory.add(acc);

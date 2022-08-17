@@ -1,7 +1,7 @@
 public without sharing class TerritoryHelper {
-    public  Map<Id,Id> findTerritory(List<Account> accountsToProcess){
+    public  Map<String,Id> findTerritory(List<Account> accountsToProcess){
         // return Map = Account ID > Territory Id
-        Map<Id,Id> returnMap = new Map<Id,Id>();
+        Map<String,Id> returnMap = new Map<String,Id>();
         
         // create Map of territories for matching (Territory Name > Territory ID> List of TA's)
         Map<String,Id> allTerritoriesMap = new Map<String,Id>();
@@ -24,7 +24,9 @@ public without sharing class TerritoryHelper {
                 System.debug('findTerritory zipIteration: ' + zipIteration);
                 if(allTerritoriesMap.containsKey(zipIteration)){
                     // add the account ID & Territory ID to the returnMap
-                    returnMap.put(acc.Id, allTerritoriesMap.get(zipIteration));
+                    String mapKey = (acc.Id == null) ? acc.OwnerId + acc.BillingPostalCode : acc.id;
+                    returnMap.put(mapKey, allTerritoriesMap.get(zipIteration));
+                    break;
                 }
             }
         }
